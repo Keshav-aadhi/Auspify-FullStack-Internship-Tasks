@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { padding: 2rem; background: #f0f2f5; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h1 { text-align: center; margin-bottom: 1.5rem; color: #1e293b; }
+    .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .card { padding: 1.2rem; border-radius: 8px; text-align: center; color: white; }
+    .card.balance { background: #2563eb; }
+    .card.income { background: #16a34a; }
+    .card.expense { background: #dc2626; }
+    .card h3 { font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; opacity: 0.9; }
+    .card p { font-size: 1.5rem; font-weight: bold; }
+    form { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem; }
+    input, select, button { padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+    button { background: #2563eb; color: white; font-weight: bold; border: none; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    .transaction-list { list-style: none; }
+    .transaction-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border-left: 5px solid #ccc; margin-bottom: 0.5rem; background: #f8fafc; border-radius: 4px; }
+    .transaction-item.income { border-left-color: #16a34a; }
+    .transaction-item.expense { border-left-color: #dc2626; }
+    .btn-delete { background: #ef4444; border: none; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Expense Tracker</h1>
+    
+    <div class="summary-cards">
+      <div class="card balance">
+        <h3>Net Balance</h3>
+        <p id="net-balance">₹0.00</p>
+      </div>
+      <div class="card income">
+        <h3>Total Income</h3>
+        <p id="total-income">₹0.00</p>
+      </div>
+      <div class="card expense">
+        <h3>Total Expenses</h3>
+        <p id="total-expense">₹0.00</p>
+      </div>
+    </div>
+
+    <form id="tracker-form">
+      <input type="text" id="title" placeholder="Transaction Title" required />
+      <input type="number" id="amount" placeholder="Amount (in ₹)" step="0.01" required />
+      <select id="type">
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <input type="date" id="date" required />
+      <button type="submit" style="grid-column: span 4;">Add Transaction</button>
+    </form>
+
+    <h2>Recent Transactions</h2>
+    <ul id="transaction-list" class="transaction-list"></ul>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:5001/api/transactions";
+
+    async function fetchTransactions() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        
+        document.getElementById("net-balance").textContent = `₹${data.summary.balance.toFixed(2)}`;
+        document.getElementById("total-income").textContent = `₹${data.summary.totalIncome.toFixed(2)}`;
+        document.getElementById("total-expense").textContent = `₹${data.summary.totalExpense.toFixed(2)}`;
+
+        const list = document.getElementById("transaction-list");
+        list.innerHTML = "";
+        data.transactions.forEach(t => {
+          const item = document.createElement("li");
+          item.className = `transaction-item ${t.type}`;
+          item.innerHTML = `
+            <div>
+              <strong>${t.title}</strong>
+              <div style="font-size:0.8rem; color:#64748b;">${t.date}</div>
+            </div>
+            <div>
+              <span style="font-weight:bold; margin-right:1rem; color:${t.type==='income'?'#16a34a':'#dc2626'}">
+                ${t.type==='income'?'+':'-'}₹${t.amount.toFixed(2)}
+              </span>
+              <button class="btn-delete" onclick="deleteTransaction('${t.id}')">Delete</button>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+      } catch (err) {
+        console.error("Server connection failed", err);
+      }
+    }
+
+    document.getElementById("tracker-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("title").value;
+      const amount = document.getElementById("amount").value;
+      const type = document.getElementById("type").value;
+      const date = document.getElementById("date").value;
+
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, amount, type, date })
+      });
+
+      document.getElementById("tracker-form").reset();
+      fetchTransactions();
+    });
+
+    async function deleteTransaction(id) {
+      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      fetchTransactions();
+    }
+
+    fetchTransactions();
+  </script>
+</body>
+</html>
