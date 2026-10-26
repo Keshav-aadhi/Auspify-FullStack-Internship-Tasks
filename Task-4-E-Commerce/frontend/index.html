@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TechStore - E-Commerce App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: #f8fafc; color: #1e293b; }
+    header { background: #0f172a; color: white; padding: 1.2rem 8%; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.5rem; }
+    .cart-count { background: #2563eb; padding: 0.3rem 0.8rem; border-radius: 20px; font-weight: bold; }
+    .container { display: grid; grid-template-columns: 2.5fr 1fr; gap: 2rem; padding: 2rem 8%; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+    .product-card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1rem; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
+    .product-card img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; margin-bottom: 0.8rem; }
+    .product-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .price { font-size: 1.2rem; font-weight: bold; color: #16a34a; margin-bottom: 1rem; }
+    .btn-add { background: #2563eb; color: white; border: none; padding: 0.6rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+    .btn-add:hover { background: #1d4ed8; }
+    .cart-panel { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; }
+    .cart-panel h2 { margin-bottom: 1rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px solid #e2e8f0; }
+    .btn-remove { background: #ef4444; color: white; border: none; padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .total-section { font-size: 1.2rem; font-weight: bold; margin-top: 1rem; text-align: right; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TechStore India</h1>
+    <div class="cart-count" id="cart-count">Cart (0)</div>
+  </header>
+
+  <div class="container">
+    <div>
+      <h2 style="margin-bottom: 1rem;">Products Catalog</h2>
+      <div id="product-grid" class="product-grid"></div>
+    </div>
+
+    <div class="cart-panel">
+      <h2>Shopping Cart</h2>
+      <div id="cart-items"></div>
+      <div class="total-section">
+        Total: <span id="cart-total">₹0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5002/api";
+
+    async function loadProducts() {
+      const res = await fetch(`${API_BASE}/products`);
+      const products = await res.json();
+      const grid = document.getElementById("product-grid");
+      grid.innerHTML = "";
+      products.forEach(p => {
+        grid.innerHTML += `
+          <div class="product-card">
+            <img src="${p.image}" alt="${p.name}">
+            <h3>${p.name}</h3>
+            <div class="price">₹${p.price.toLocaleString("en-IN")}</div>
+            <button class="btn-add" onclick="addToCart('${p.id}')">Add to Cart</button>
+          </div>
+        `;
+      });
+    }
+
+    async function loadCart() {
+      const res = await fetch(`${API_BASE}/cart`);
+      const { cart, total } = await res.json();
+      const cartDiv = document.getElementById("cart-items");
+      const countDiv = document.getElementById("cart-count");
+      const totalSpan = document.getElementById("cart-total");
+
+      const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0);
+      countDiv.textContent = `Cart (${totalItems})`;
+      totalSpan.textContent = `₹${total.toLocaleString("en-IN")}`;
+
+      cartDiv.innerHTML = "";
+      if (cart.length === 0) {
+        cartDiv.innerHTML = "<p style='color:#64748b;'>Your cart is empty.</p>";
+        return;
+      }
+
+      cart.forEach(item => {
+        cartDiv.innerHTML += `
+          <div class="cart-item">
+            <div>
+              <strong>${item.name}</strong>
+              <div style="font-size:0.85rem; color:#64748b;">Qty: ${item.quantity} × ₹${item.price}</div>
+            </div>
+            <button class="btn-remove" onclick="removeFromCart('${item.id}')">Remove</button>
+          </div>
+        `;
+      });
+    }
+
+    async function addToCart(productId) {
+      await fetch(`${API_BASE}/cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId })
+      });
+      loadCart();
+    }
+
+    async function removeFromCart(id) {
+      await fetch(`${API_BASE}/cart/${id}`, { method: "DELETE" });
+      loadCart();
+    }
+
+    loadProducts();
+    loadCart();
+  </script>
+</body>
+</html>
